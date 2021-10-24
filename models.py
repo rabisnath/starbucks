@@ -1,7 +1,5 @@
 from binance.client import Client
-import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 import os
 import datetime
 
@@ -18,7 +16,7 @@ def PCA_risk_model(return_matrix, n_components=10, use_ad_fuller=True, ad_fuller
     '''
     takes a matrix of returns where the first index is time and
         the second is which coin
-    returns a vector of s-scores, one for each coin
+    returns a list of s-scores, one for each coin
         the scores are the result of decomposing the price movements of a given coin
         into the movements of n_components eigenportfolios found via PCA.
         the residuals from the PCA model are modeled as an Ornstein Uhlenbeck process
@@ -56,13 +54,18 @@ def PCA_risk_model(return_matrix, n_components=10, use_ad_fuller=True, ad_fuller
         if (use_ad_fuller) and (not (adfuller(cumulative_residuals[:, i])[1] < ad_fuller_alpha)):
             s_scores[i] = 0
         else:
-            ar_model_results = AutoReg(cumulative_residuals[:, i], lags=1).fit()
+            ar_model_results = AutoReg(cumulative_residuals[:, i], lags=1, old_names=False).fit()
             a_hat = ar_model_results.params[0]
             b_hat = ar_model_results.params[1]
             ar_residuals = ar_model_results.resid
             m_OU = a_hat / (1 - b_hat)
             sigma_OU = np.sqrt(np.var(ar_residuals) / (1 - (b_hat**2)))
-            S = -1 * m_OU / sigma_OU
+            if sigma_OU != 0:
+                S = -1 * m_OU / sigma_OU
+            else:
+                S = 0
+
+            #print("Debugging: \n a_hat = {} \n b_hat = {} \n m_OU = {} \n sigma_OU = {} \n S = {} \n".format(a_hat, b_hat, m_OU, sigma_OU, S))
             s_scores[i] = S
             
 

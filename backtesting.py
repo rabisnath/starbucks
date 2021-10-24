@@ -1,10 +1,6 @@
-import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import os
 import datetime
 import json
-
 from data import *
 from models import PCA_risk_model
 
@@ -14,10 +10,6 @@ def backtest(symbols, price_matrix, model, model_settings, s_sell=2.5, s_buy=-2.
     
     required parameters:
 
-    start - datetime object with the starting date/time for the simulation
-                if the data provided has, say, daily frequency, then it only makes sense to specify the start up to the day 
-                e.g. start = datetime.datetime(2020, 1, 1)
-    end - datetime object specifying the end of the simulation
     symbols - a list of strings with the tickers for all the coins/stocks reperesented in the price_matrix
     price_matrix - an N by M matrix of coin prices, where the 1st coord is time, and the second coord is the coin
     model - 
@@ -44,8 +36,24 @@ def backtest(symbols, price_matrix, model, model_settings, s_sell=2.5, s_buy=-2.
     t_max = price_matrix.shape[0] - inference_window_size
     account_balance = starting_account_balance
     trades = [] # trade has {symbol: , direction: , size: , entry_time: }
-    log = {}
+    passed_args = locals()
+    log = {
+        'backtest_settings': {
+                'symbols': str(passed_args['symbols']),
+                'model': str(passed_args['model']),
+                'model_settings': str(passed_args['model_settings']),
+                's_sell': passed_args['s_sell'],
+                's_buy': passed_args['s_buy'],
+                's_close_posn': passed_args['s_close_posn'],
+                'enable_shorting': passed_args['enable_shorting'],
+                'inference_window_size': passed_args['inference_window_size'],
+                'starting_account_balance': passed_args['starting_account_balance'],
+                'bet_size': passed_args['bet_size'],
+            }
+    }
     full_log_as_text = ''
+    n_trades = 0
+    returns_on_trades = []
 
     while t < t_max:
 
@@ -54,7 +62,7 @@ def backtest(symbols, price_matrix, model, model_settings, s_sell=2.5, s_buy=-2.
         full_log_as_text += 't = {}\n'.format(t)
         full_log_as_text += 'current open positions: ' + str(trades) + '\n'
 
-        log[t] = trades
+        log['Open positions at time t={}'.format(t)] = trades
 
         # new day
         # get data slice
@@ -75,9 +83,12 @@ def backtest(symbols, price_matrix, model, model_settings, s_sell=2.5, s_buy=-2.
 
         new_trades = []
         for trade in trades:
-            trade['value'] *= (1 + return_slice[-1, list(symbols).index(trade['symbol'])])
+            trade['current_value'] *= (1 + return_slice[-1, list(symbols).index(trade['symbol'])])
+            sign = 1 if trade['direction'] == 'Long' else -1
+            trade['profit_and_loss'] = sign * (trade['current_value'] - trade['original_value'])
             if s_score_dict[trade['symbol']]**2 < s_close_posn**2:
-                account_balance += np.abs(trade['value'])
+                account_balance += sign * np.abs(trade['current_value'])
+                returns_on_trades.append((trade['current_value']/trade['original_value']) - 1)
             else:
                 new_trades.append(trade)
         trades = new_trades
@@ -89,29 +100,58 @@ def backtest(symbols, price_matrix, model, model_settings, s_sell=2.5, s_buy=-2.
             bet = account_balance * bet_size
             if account_balance > 0:
                 if score < s_buy:
-                    trades.append({'symbol': symbol, 'direction': 'Buy', 'value': bet, 'entry_time': t})
+                    trades.append({'symbol': symbol, 'direction': 'Long', 'original_value': bet, 'current_value': bet, 'entry_time': t})
                     account_balance -= bet
+                    n_trades += 1
                 if (score > s_sell) and enable_shorting: 
-                    trades.append({'symbol': symbol, 'direction': 'Sell', 'value': bet, 'entry_time': t})
+                    trades.append({'symbol': symbol, 'direction': 'Short', 'original_value': bet, 'current_value': bet, 'entry_time': t})
                     account_balance += bet
+                    n_trades += 1
             
 
         t = t + 1
 
-    log['full_log_as_text'] = full_log_as_text
+    value_of_open_positions = 0
+    for t in trades:
+        if t['direction'] == 'Buy':
+            value_of_open_positions += t['current_value']
+        elif t['direction'] == 'Sell':
+            value_of_open_positions -= t['current_value']
+
     log['starting_account_balance'] = starting_account_balance
     log['final_account_balance'] = account_balance
+    final_portfolio_value = account_balance + value_of_open_positions
+    log['final_portfolio_value'] = final_portfolio_value
+    log['n_trades'] = n_trades
+    log['returns_on_trades'] = str(returns_on_trades)
+    log['total_return'] = final_portfolio_value/starting_account_balance - 1
+    log['trading_history_as_text'] = full_log_as_text
 
     if verbosity >= 1: print(log)
 
     return log
 
 
+def compare_logs(logs, settings_to_include=[]):
+    '''
+    takes a dict of labeled logs and returns a dataframe with summary info
+    will only include backtesting settings in the settings_to_include list
+    '''
+
+    items_to_extract = settings_to_include + ['n_trades', 'total_return']
+    data = [[l[i] for i in items_to_extract] for l in logs.values()]
+
+    df = pd.DataFrame(data, columns=items_to_extract, index=logs.keys())
+
+
+    return df
+
+
 if __name__ == '__main__':
 
     example_PCA_settings = {
         'n_components': 10,
-        'use_ad_fuller': True,
+        'use_ad_fuller': False,
         'ad_fuller_alpha': 0.05
     }
 
@@ -133,5 +173,5 @@ if __name__ == '__main__':
 
     log = backtest(symbols, price_matrix, PCA_risk_model, example_PCA_settings, **example_backtest_settings)
     with open('backtest_results.txt', 'w+') as outfile:
-        json.dump(log, outfile)
+        json.dump(log, outfile, indent=4)
 

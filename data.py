@@ -9,14 +9,14 @@ api_key = os.environ.get('binance_key')
 api_secret = os.environ.get('binance_secret')
 client = Client(api_key, api_secret)
 
-def highest_volume_coins(N, base='BTC'):
+def highest_volume_coins(N, base_currency='BTC'):
     '''
     returns N tickers representing the highest volume coins
     of those with the base str in the ticker
     '''
     info = client.get_all_tickers()
     all_symbols = [d['symbol'] for d in info]
-    priced_in_btc = [s for s in all_symbols if 'BTC' in s]
+    priced_in_base_currency = [s for s in all_symbols if base_currency in s]
 
     tickers = client.get_orderbook_tickers()
     tickers = pd.DataFrame.from_dict(tickers)
@@ -30,7 +30,7 @@ def highest_volume_coins(N, base='BTC'):
     tickers = tickers.astype(col_types)
     tickers['totalQty'] = tickers['bidQty'] + tickers['askQty']
 
-    high_volume_coins = tickers[tickers['symbol'].isin(priced_in_btc)].nlargest(N, 'totalQty')
+    high_volume_coins = tickers[tickers['symbol'].isin(priced_in_base_currency)].nlargest(N, 'totalQty')
     symbols = high_volume_coins['symbol'].values
 
     return symbols
@@ -45,7 +45,7 @@ def price_histories(symbols, interval_size, start_datetime, end_datetime=None):
         (None for end_datetime gives data from start to the present)
 
     returns a dict, indexed by symbol
-    the values of the dict are data tables with OHLCV entries for each point in time
+    the values of the dict are dataframes with OHLCV entries for each point in time
     time increases as row index increases
     '''
 
