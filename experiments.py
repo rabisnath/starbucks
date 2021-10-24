@@ -1,4 +1,5 @@
 import datetime
+import multiprocessing
 
 from data import *
 from models import PCA_risk_model
@@ -167,8 +168,19 @@ if __name__ == '__main__':
         os.mkdir(main_save_dir)
     except:
         pass
-    Experiment_1(save_dir=main_save_dir+'Expt_1')
-    Experiment_2(save_dir=main_save_dir+'Expt_2')
+
+    #Experiment_1(save_dir=main_save_dir+'Expt_1')
+    #Experiment_2(save_dir=main_save_dir+'Expt_2')
+
+    p1 = multiprocessing.Process(target=Experiment_1, args=(main_save_dir+'Expt_1',))
+    p2 = multiprocessing.Process(target=Experiment_2, args=(main_save_dir+'Expt_2',))
+
+    p1.start()
+    p2.start()
+  
+    p1.join()
+    p2.join()
+
 
 
 
