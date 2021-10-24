@@ -120,8 +120,9 @@ Expt_2_BT_Settings = {
     'verbosity': 0
 }
  
-Expt_2_Start_intraday = datetime.datetime(2021, 9, 24) 
-Expt_2_Start_longer = datetime.datetime(2020, 1, 1) 
+Expt_2_Start_short = datetime.datetime(2021, 9, 24)
+Expt_2_Start_medium = datetime.datetime(2021, 9, 24) 
+Expt_2_Start_long = datetime.datetime(2020, 1, 1) 
 Expt_2_End = None
 
 intervals_to_test = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1mo']
@@ -133,8 +134,13 @@ def Experiment_2(save_dir='', make_dir=True):
     logs = {}
 
     for i in intervals_to_test:
+        if i in ['1m', '3m', '5m', '15m', '30m']:
+            Expt_2_Start = Expt_2_Start_short
+        elif i in ['1h', '2h', '4h', '6h', '8h', '12h']:
+            Expt_2_Start = Expt_2_Start_medium
+        elif i in ['1d', '3d', '1w', '1mo']:
+            Expt_2_Start = Expt_2_Start_long
         try:
-            Expt_2_Start = Expt_2_Start_intraday if i in ['1m', '3m', '5m', '15m', '30m', '1h', '2h'] else Expt_2_Start_longer
             trial_name = 'Expt_2_{}_intervals'.format(i)
             print("Getting data for {}-intervals ({}/{})".format(i, intervals_to_test.index(i), len(intervals_to_test)))
             prices = price_histories(symbols, i, Expt_2_Start, Expt_2_End)
