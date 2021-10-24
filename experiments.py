@@ -120,7 +120,7 @@ Expt_2_BT_Settings = {
     'verbosity': 0
 }
  
-Expt_2_Start_short = datetime.datetime(2021, 9, 24)
+Expt_2_Start_short = datetime.datetime(2021, 10, 17)
 Expt_2_Start_medium = datetime.datetime(2021, 9, 24) 
 Expt_2_Start_long = datetime.datetime(2020, 1, 1) 
 Expt_2_End = None
