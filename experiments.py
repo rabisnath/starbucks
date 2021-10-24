@@ -119,8 +119,9 @@ Expt_2_BT_Settings = {
     'bet_size': 0.05,
     'verbosity': 0
 }
-
-Expt_2_Start = datetime.datetime(2020, 1, 1) 
+ 
+Expt_2_Start_intraday = datetime.datetime(2021, 9, 24) 
+Expt_2_Start_longer = datetime.datetime(2020, 1, 1) 
 Expt_2_End = None
 
 intervals_to_test = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1mo']
@@ -133,6 +134,7 @@ def Experiment_2(save_dir='', make_dir=True):
 
     for i in intervals_to_test:
         try:
+            Expt_2_Start = Expt_2_Start_intraday if i in ['1m', '3m', '5m', '15m', '30m', '1h', '2h'] else Expt_2_Start_longer
             trial_name = 'Expt_2_{}_intervals'.format(i)
             print("Getting data for {}-intervals ({}/{})".format(i, intervals_to_test.index(i), len(intervals_to_test)))
             prices = price_histories(symbols, i, Expt_2_Start, Expt_2_End)
@@ -169,17 +171,17 @@ if __name__ == '__main__':
     except:
         pass
 
-    #Experiment_1(save_dir=main_save_dir+'Expt_1')
-    #Experiment_2(save_dir=main_save_dir+'Expt_2')
+    Experiment_1(save_dir=main_save_dir+'Expt_1')
+    Experiment_2(save_dir=main_save_dir+'Expt_2')
 
-    p1 = multiprocessing.Process(target=Experiment_1, args=(main_save_dir+'Expt_1',))
-    p2 = multiprocessing.Process(target=Experiment_2, args=(main_save_dir+'Expt_2',))
+    #p1 = multiprocessing.Process(target=Experiment_1, args=(main_save_dir+'Expt_1',))
+    #p2 = multiprocessing.Process(target=Experiment_2, args=(main_save_dir+'Expt_2',))
 
-    p1.start()
-    p2.start()
+    #p1.start()
+    #p2.start()
   
-    p1.join()
-    p2.join()
+    #p1.join()
+    #p2.join()
 
 
 
