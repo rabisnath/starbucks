@@ -1,3 +1,5 @@
 *.txt
 *.code-workspace
 __pycache__/
+backtesting_results/
+starb/
