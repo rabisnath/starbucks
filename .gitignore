@@ -3,3 +3,5 @@
 __pycache__/
 backtesting_results/
 starb/
+*.zip
+.DS_Store
