@@ -384,7 +384,7 @@ def Experiment_4(save_dir='', make_dir=True):
 
         try:
             print("Running backtest for z={}".format(z))
-            trial_name = "Expt_4_{}sigma"
+            trial_name = "Expt_4_{}sigma".format(z)
             log = backtest(symbols, full_price_matrix, PCA_risk_model, Expt_4_PCA_Settings, **BT_settings)
             logs[trial_name] = log
         except Exception as e:
