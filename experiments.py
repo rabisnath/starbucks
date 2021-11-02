@@ -1,6 +1,4 @@
 import datetime
-import multiprocessing
-
 from data import *
 from models import PCA_risk_model
 from backtesting import *
@@ -181,6 +179,15 @@ Lets focus on 1hr, 30min and 5min intervals
 We'll do a coarse sampling of settings for s_buy/sell, s_close_posn, inference window size
 After this, will do an expt 4 with more detailed exploration of these settings at the most promising time scale
 Shorting and the bet size can be optimized next
+
+
+Conclusions:
+
+Permissive trigger was consistently bad,
+Changing the inference window didn't have much effect,
+Changing s_close didn't do much
+1h > 5min and 30min
+
 '''
 
 Expt_3_Start_for_5m = datetime.datetime(2021, 10, 18)
@@ -285,7 +292,121 @@ def Experiment_3(save_dir='', make_dir=True):
     
     return comparison_chart
 
+'''
+Expt 4:
 
+Wants:
+    - Test intervals {1m, 3m, 5m, 15m, 30m, 1h}
+    - Long backtest: 1 year+ of data if possible 
+    - Sensitivities {2.5, 3, 3.5, 4, 4.25, 4.5, 4.75, 5}
+    - Different number of principal components 
+
+Expt 4:
+    - Lets do 5m intervals
+    - 1 month of data (should be more than plenty for 5m)
+    - All the sensitivies!!
+    - Don't vary anything else
+
+'''
+
+# stitching together data to make #big_data
+
+def get_date_pairs(start, end, delta=datetime.timedelta(days=7)):
+    '''
+    takes two datetime objects (start and end) and an increment (delta)
+    return a list of 2-tuples of datetime objects which partition the original interval into chunks of size delta
+    '''
+    n_periods, remainder = divmod(end - start, delta)
+    if remainder != datetime.timedelta(0):
+        raise ValueError("get_date_pairs received a delta that doesn't divide (end-start)")
+
+    date_pairs = []
+    for i in range(n_periods):
+        s = start + (i*delta)
+        e = s + delta
+        date_pairs.append((s, e))
+
+    return date_pairs
+
+def stitch_data(symbols, interval, date_pairs):
+    '''
+    takes a list of 2-tuples of (start, end) datetime objects,
+    the inteval length e.g. '1m'
+    
+    returns an N by M matrix of coin prices, where the 1st coord is time, and 
+        the second coord is the coin
+    '''
+
+    price_matrices = []
+
+    for p in date_pairs:
+        price_matrix = price_matrix_from_dict(price_histories(symbols, interval, p[0], p[1]))
+        if p != date_pairs[-1]: # if we're not on the last batch
+            price_matrices.append(price_matrix[:-1]) # we drop the last row because it's the first row in the next matrix
+        else:
+            price_matrices.append(price_matrix)
+
+    full_data = np.concatenate(price_matrices, axis=0)
+
+    return full_data
+
+
+Expt_4_PCA_Settings = {
+    'n_components': 10,
+    'use_ad_fuller': True,
+    'ad_fuller_alpha': 0.05
+}
+
+Expt_4_BT_Settings_Template = { # s_sell, s_buy missing
+    's_close_posn': 0.5,
+    'enable_shorting': False,
+    'inference_window_size': 30,
+    'bet_size': 0.05,
+    'verbosity': 1
+}
+
+def Experiment_4(save_dir='', make_dir=True):
+
+    print("Running Experiment 4")
+
+    start = datetime.datetime(2021, 8, 1)
+    end = datetime.datetime(2021, 11, 1)
+    delta = datetime.timedelta(days=1)
+    print("Getting data from {} to {} in chunks of size {}".format(start, end, delta))
+    full_price_matrix = stitch_data(symbols, '5m', get_date_pairs(start, end, delta))
+
+    logs = {}
+    significance_levels = [2.5, 3, 3.5, 4, 4.25, 4.5, 4.75, 5, 5.25, 5.5, 5.75, 6]
+    for z in significance_levels:
+        BT_settings = {k: v for k,v in Expt_4_BT_Settings_Template.items()}
+        BT_settings['s_sell'] = z
+        BT_settings['s_buy'] = -1 * z
+
+        try:
+            print("Running backtest for z={}".format(z))
+            trial_name = "Expt_4_{}sigma"
+            log = backtest(symbols, full_price_matrix, PCA_risk_model, Expt_4_PCA_Settings, **BT_settings)
+            logs[trial_name] = log
+        except Exception as e:
+            print("Error encountered in Experiment 4, trial for z={}:\n {}".format(z, e))
+            
+        
+    comparison_chart = compare_logs(logs)
+
+    if make_dir:
+        try:
+            os.mkdir(save_dir)
+        except:
+            pass
+
+    for label, log in logs.items():
+        with open(save_dir+'/'+label+'_results.txt', 'w+') as outfile:
+            json.dump(log, outfile, indent=4)
+    
+    with open(save_dir+'/'+'Expt_4_comparison.csv', 'w+') as outfile:
+        comparison_chart.to_csv(outfile)
+    
+    return comparison_chart
 
 
 if __name__ == '__main__':
@@ -297,16 +418,11 @@ if __name__ == '__main__':
 
     #Experiment_1(save_dir=main_save_dir+'Expt_1')
     #Experiment_2(save_dir=main_save_dir+'Expt_2')
-    Experiment_3(save_dir=main_save_dir+'Expt_3')
+    #Experiment_3(save_dir=main_save_dir+'Expt_3')
+    Experiment_4(save_dir=main_save_dir+'Expt_4')
 
-    #p1 = multiprocessing.Process(target=Experiment_1, args=(main_save_dir+'Expt_1',))
-    #p2 = multiprocessing.Process(target=Experiment_2, args=(main_save_dir+'Expt_2',))
 
-    #p1.start()
-    #p2.start()
-  
-    #p1.join()
-    #p2.join()
+    
 
 
 
