@@ -328,13 +328,14 @@ def get_date_pairs(start, end, delta=datetime.timedelta(days=7)):
 
     return date_pairs
 
-def stitch_data(symbols, interval, date_pairs):
+def get_data_as_chunks(symbols, interval, date_pairs):
     '''
     takes a list of 2-tuples of (start, end) datetime objects,
     the inteval length e.g. '1m'
     
-    returns an N by M matrix of coin prices, where the 1st coord is time, and 
+    returns a list of N by M matrices of coin prices, where the 1st coord is time, and 
         the second coord is the coin
+    the output of this function can be used as input to the backtest_in_chunks function
     '''
 
     price_matrices = []
@@ -346,9 +347,9 @@ def stitch_data(symbols, interval, date_pairs):
         else:
             price_matrices.append(price_matrix)
 
-    full_data = np.concatenate(price_matrices, axis=0)
+    #full_data = np.concatenate(price_matrices, axis=0)
 
-    return full_data
+    return price_matrices #full_data
 
 
 Expt_4_PCA_Settings = {
@@ -373,7 +374,7 @@ def Experiment_4(save_dir='', make_dir=True):
     end = datetime.datetime(2021, 11, 1)
     delta = datetime.timedelta(days=1)
     print("Getting data from {} to {} in chunks of size {}".format(start, end, delta))
-    full_price_matrix = stitch_data(symbols, '5m', get_date_pairs(start, end, delta))
+    price_matrices = get_data_as_chunks(symbols, '5m', get_date_pairs(start, end, delta)) #!!!!!
 
     logs = {}
     significance_levels = [2.5, 3, 3.5, 4, 4.25, 4.5, 4.75, 5, 5.25, 5.5, 5.75, 6]
@@ -385,7 +386,7 @@ def Experiment_4(save_dir='', make_dir=True):
         try:
             print("Running backtest for z={}".format(z))
             trial_name = "Expt_4_{}sigma".format(z)
-            log = backtest(symbols, full_price_matrix, PCA_risk_model, Expt_4_PCA_Settings, **BT_settings)
+            log = backtest_in_chunks(symbols, price_matrices, PCA_risk_model, Expt_4_PCA_Settings, **BT_settings)
             logs[trial_name] = log
         except Exception as e:
             print("Error encountered in Experiment 4, trial for z={}:\n {}".format(z, e))

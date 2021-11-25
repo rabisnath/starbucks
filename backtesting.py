@@ -35,6 +35,8 @@ def backtest(symbols, price_matrix, model, model_settings, s_sell=2.5, s_buy=-2.
     t = 0
     t_max = price_matrix.shape[0] - inference_window_size
     account_balance = starting_account_balance
+    all_time_low = starting_account_balance
+    all_time_high = starting_account_balance
     trades = [] # trade has {symbol: , direction: , size: , entry_time: }
     passed_args = locals()
     log = {
@@ -108,6 +110,12 @@ def backtest(symbols, price_matrix, model, model_settings, s_sell=2.5, s_buy=-2.
                     account_balance += bet
                     n_trades += 1
             
+        # scorekeeping
+
+        if account_balance < all_time_low:
+            all_time_low = account_balance
+        elif account_balance > all_time_high:
+            all_time_high = account_balance
 
         t = t + 1
 
@@ -122,14 +130,54 @@ def backtest(symbols, price_matrix, model, model_settings, s_sell=2.5, s_buy=-2.
     log['final_account_balance'] = account_balance
     final_portfolio_value = account_balance + value_of_open_positions
     log['final_portfolio_value'] = final_portfolio_value
+    log['all_time_low'] = all_time_low
+    log['all_time_high'] = all_time_high
     log['n_trades'] = n_trades
     log['returns_on_trades'] = str(returns_on_trades)
+    log['win_rate'] = len([x for x in returns_on_trades if x > 0]) / n_trades
+    log['std_of_returns'] = np.std(log['returns_on_trades'])
     log['total_return'] = final_portfolio_value/starting_account_balance - 1
+    log['sharpe_ratio_wrt_zero'] = log['total_return'] / log['std_of_returns']
+    log['sharpe_ratio_wrt_2percentRFR'] = (log['total_return'] - 0.02) / log['std_of_returns']
     log['trading_history_as_text'] = full_log_as_text
 
     if verbosity >= 1: print(log)
 
     return log
+
+
+def continue_backtest(log, price_matrix, label=''):
+    '''
+    performs a backtest using settings from a previous backtest as a starting point instead of initializing everything from scratch
+    also takes a label to add to the log (the time t will loop if we call this repeatedly)
+    '''
+
+    t = 0
+    t_max = price_matrix.shape[0] - log['inference_window_size']
+    account_balance = log['account_balance']
+    all_time_low = log['all_time_low']
+    all_time_high = log['all_time_high']
+    trades = [] # trade has {symbol: , direction: , size: , entry_time: }
+    passed_args = locals()
+
+    full_log_as_text = ''
+    n_trades = 0
+    returns_on_trades = []
+
+
+    return log
+
+
+def backtest_in_chunks(symbols, price_matrices, model, model_settings, s_sell=2.5, s_buy=-2.5, s_close_posn=0.5, enable_shorting=True, inference_window_size=30, starting_account_balance=10000, bet_size=0.02, verbosity=1):
+    '''
+    takes all the same settings as backtest(), but takes a list of price matrices to backtest on sequentially 
+    instead of a single large matrix
+    '''
+
+    return
+
+
+
 
 
 def compare_logs(logs, settings_to_include=[]):
