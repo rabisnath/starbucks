@@ -68,13 +68,13 @@ def Experiment_1(save_dir='', make_dir=True):
     price_matrix = price_matrix_from_dict(prices)
 
     print("Running backtest 1/4")
-    log_1 = backtest(symbols, price_matrix, PCA_risk_model, Expt_1_1_PCA_Settings, **Expt_1_BT_Settings)
+    log_1 = backtest(price_matrix, symbols, PCA_risk_model, Expt_1_1_PCA_Settings, **Expt_1_BT_Settings)
     print("Running backtest 2/4")
-    log_2 = backtest(symbols, price_matrix, PCA_risk_model, Expt_1_2_PCA_Settings, **Expt_1_BT_Settings)
+    log_2 = backtest(price_matrix, symbols, PCA_risk_model, Expt_1_2_PCA_Settings, **Expt_1_BT_Settings)
     print("Running backtest 3/4")
-    log_3 = backtest(symbols, price_matrix, PCA_risk_model, Expt_1_3_PCA_Settings, **Expt_1_BT_Settings)
+    log_3 = backtest(price_matrix, symbols, PCA_risk_model, Expt_1_3_PCA_Settings, **Expt_1_BT_Settings)
     print("Running backtest 4/4")
-    log_4 = backtest(symbols, price_matrix, PCA_risk_model, Expt_1_4_PCA_Settings, **Expt_1_BT_Settings)
+    log_4 = backtest(price_matrix, symbols, PCA_risk_model, Expt_1_4_PCA_Settings, **Expt_1_BT_Settings)
 
     logs = {
         'Expt_1_1': log_1,
@@ -148,7 +148,7 @@ def Experiment_2(save_dir='', make_dir=True):
             prices = price_histories(symbols, i, Expt_2_Start, Expt_2_End)
             price_matrix = price_matrix_from_dict(prices)
             print("Running backtest for {}-intervals ({}/{})".format(i, intervals_to_test.index(i), len(intervals_to_test)))
-            log = backtest(symbols, price_matrix, PCA_risk_model, Expt_2_PCA_Settings, **Expt_2_BT_Settings)
+            log = backtest(price_matrix, symbols, PCA_risk_model, Expt_2_PCA_Settings, **Expt_2_BT_Settings)
             logs[trial_name] = log
         except Exception as e:
             print("Error encountered in Experiment 2, trial for {}-intervals:\n {}".format(i, e))
@@ -269,7 +269,7 @@ def Experiment_3(save_dir='', make_dir=True):
             for k, v in Expt_3_Trials.items():
                 print("Running backtest for {}-intervals with BT settings {}".format(i,k))
                 trial_name = base_trial_name+'_settings_{}'.format(k)
-                log = backtest(symbols, price_matrix, PCA_risk_model, Expt_3_PCA_Settings, **v)
+                log = backtest(price_matrix, symbols, PCA_risk_model, Expt_3_PCA_Settings, **v)
                 logs[trial_name] = log
         except Exception as e:
             print("Error encountered in Experiment 3, trial for {}-intervals, BT settings {}:\n {}".format(i, k, e))
@@ -292,6 +292,7 @@ def Experiment_3(save_dir='', make_dir=True):
     
     return comparison_chart
 
+# Experiment 4
 '''
 Expt 4:
 
@@ -308,49 +309,6 @@ Expt 4:
     - Don't vary anything else
 
 '''
-
-# stitching together data to make #big_data
-
-def get_date_pairs(start, end, delta=datetime.timedelta(days=7)):
-    '''
-    takes two datetime objects (start and end) and an increment (delta)
-    return a list of 2-tuples of datetime objects which partition the original interval into chunks of size delta
-    '''
-    n_periods, remainder = divmod(end - start, delta)
-    if remainder != datetime.timedelta(0):
-        raise ValueError("get_date_pairs received a delta that doesn't divide (end-start)")
-
-    date_pairs = []
-    for i in range(n_periods):
-        s = start + (i*delta)
-        e = s + delta
-        date_pairs.append((s, e))
-
-    return date_pairs
-
-def get_data_as_chunks(symbols, interval, date_pairs):
-    '''
-    takes a list of 2-tuples of (start, end) datetime objects,
-    the inteval length e.g. '1m'
-    
-    returns a list of N by M matrices of coin prices, where the 1st coord is time, and 
-        the second coord is the coin
-    the output of this function can be used as input to the backtest_in_chunks function
-    '''
-
-    price_matrices = []
-
-    for p in date_pairs:
-        price_matrix = price_matrix_from_dict(price_histories(symbols, interval, p[0], p[1]))
-        if p != date_pairs[-1]: # if we're not on the last batch
-            price_matrices.append(price_matrix[:-1]) # we drop the last row because it's the first row in the next matrix
-        else:
-            price_matrices.append(price_matrix)
-
-    #full_data = np.concatenate(price_matrices, axis=0)
-
-    return price_matrices #full_data
-
 
 Expt_4_PCA_Settings = {
     'n_components': 10,
@@ -374,7 +332,7 @@ def Experiment_4(save_dir='', make_dir=True):
     end = datetime.datetime(2021, 11, 1)
     delta = datetime.timedelta(days=1)
     print("Getting data from {} to {} in chunks of size {}".format(start, end, delta))
-    price_matrices = get_data_as_chunks(symbols, '5m', get_date_pairs(start, end, delta)) #!!!!!
+    price_matrices = get_data_as_chunks(symbols, '5m', get_date_pairs(start, end, delta))
 
     logs = {}
     significance_levels = [2.5, 3, 3.5, 4, 4.25, 4.5, 4.75, 5, 5.25, 5.5, 5.75, 6]

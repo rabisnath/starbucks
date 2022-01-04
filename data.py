@@ -149,4 +149,44 @@ def returns_from_prices(price_matrix):
 
     return return_matrix
 
+# stitching together data to make #big_data
 
+def get_date_pairs(start, end, delta=datetime.timedelta(days=7)):
+    '''
+    takes two datetime objects (start and end) and an increment (delta)
+    return a list of 2-tuples of datetime objects which partition the original interval into chunks of size delta
+    '''
+    n_periods, remainder = divmod(end - start, delta)
+    if remainder != datetime.timedelta(0):
+        raise ValueError("get_date_pairs received a delta that doesn't divide (end-start)")
+
+    date_pairs = []
+    for i in range(n_periods):
+        s = start + (i*delta)
+        e = s + delta
+        date_pairs.append((s, e))
+
+    return date_pairs
+
+def get_data_as_chunks(symbols, interval, date_pairs):
+    '''
+    takes a list of 2-tuples of (start, end) datetime objects,
+    the inteval length e.g. '1m'
+    
+    returns a list of N by M matrices of coin prices, where the 1st coord is time, and 
+        the second coord is the coin
+    the output of this function can be used as input to the backtest_in_chunks function
+    '''
+
+    price_matrices = []
+
+    for p in date_pairs:
+        price_matrix = price_matrix_from_dict(price_histories(symbols, interval, p[0], p[1]))
+        if p != date_pairs[-1]: # if we're not on the last batch
+            price_matrices.append(price_matrix[:-1]) # we drop the last row because it's the first row in the next matrix
+        else:
+            price_matrices.append(price_matrix)
+
+    #full_data = np.concatenate(price_matrices, axis=0)
+
+    return price_matrices #full_data
